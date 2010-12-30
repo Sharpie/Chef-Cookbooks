@@ -50,6 +50,24 @@ class Chef
           path ? path : 'pip'
         end
 
+        # The following two functions are duplicated---this is because the
+        # download links for some python tarballs bottleneck and cause Chef to
+        # time the process out.  Functions are duplicated to allow control over
+        # the timeout values.
+        def easy_install_binary_path
+          path = @new_resource.easy_install_binary
+          path ? path : 'easy_install-2.7'
+        end
+        
+        def candidate_version
+           return @candidate_version if @candidate_version
+
+           # do a dry run to get the latest version
+           result = shell_out!("#{easy_install_binary_path} -n #{@new_resource.package_name}", :returns=>[0,1], :timeout => 600)
+           @candidate_version = result.stdout[/(.*)Best match: (.*) (.*)$/, 3]
+           @candidate_version
+        end
+
         def load_current_resource
           @current_resource = Chef::Resource::Package.new(@new_resource.name)
           @current_resource.package_name(@new_resource.package_name)
@@ -69,19 +87,17 @@ class Chef
 
         def install_from_scm(name, version)
           if @new_resource.virtualenv
-            run_command(:command => 
-              "#{pip_binary_path} install -q -s -E #{@new_resource.virtualenv} -e \"#{@new_resource.scm}#egg=#{name}\"")
+            run_command(:command => "#{pip_binary_path} install -q -s -E #{@new_resource.virtualenv} -e \"#{@new_resource.scm}#egg=#{name}\"", :timeout => 600)
           else
-            run_command(:command => "#{pip_binary_path} install -q -e \"#{@new_resource.scm}#egg=#{name}\"")
+            run_command(:command => "#{pip_binary_path} install -q -e \"#{@new_resource.scm}#egg=#{name}\"", :timeout => 600)
           end
         end
 
         def install_from_file(name, version)
           if @new_resource.virtualenv
-            run_command(:command => 
-              "#{pip_binary_path} install -q -s -E #{@new_resource.virtualenv} \"#{@new_resource.file}\"")
+            run_command(:command => "#{pip_binary_path} install -q -s -E #{@new_resource.virtualenv} \"#{@new_resource.file}\"", :timeout => 600)
           else
-            run_command(:command => "#{pip_binary_path} install -q \"#{@new_resource.file}\"")
+            run_command(:command => "#{pip_binary_path} install -q \"#{@new_resource.file}\"", :timeout => 600)
           end
         end
 
@@ -96,7 +112,7 @@ class Chef
               command += " -s -E #{@new_resource.virtualenv}"
             end
             command += " \"#{name}==#{version}\""
-            run_command(:command => command)
+            run_command(:command => command, :timeout => 600)
           end
         end
 
