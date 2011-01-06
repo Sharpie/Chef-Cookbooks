@@ -17,6 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+case node[:platform]
+when "ubuntu"
+  include_recipe "ppa"
+  ppa_repository "cherokee-webserver" do
+    action :add
+  end
+end
 
 package 'cherokee'
 
@@ -24,5 +31,4 @@ service 'cherokee' do
   supports :status => true, :restart => true, :reload => true
   action [:enable, :start]
 end
-
 
